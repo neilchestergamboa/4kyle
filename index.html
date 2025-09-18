@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Date Proposal</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/framer-motion@11/dist/framer-motion.umd.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   </head>
@@ -15,7 +15,14 @@
 
     <script type="text/babel" data-presets="env,react">
       const { useState, useEffect, useRef } = React;
-      const { motion, AnimatePresence } = (window.framerMotion || window.FramerMotion || {});
+      const FM = window.framerMotion ?? window.FramerMotion ?? window.Motion ?? window.motion ?? null;
+      function makeMotionShim() {
+        return new Proxy({}, {
+          get: (_, tag) => (props) => React.createElement(tag, props, props?.children)
+        });
+      }
+      const motion = FM?.motion ?? makeMotionShim();
+      const AnimatePresence = FM?.AnimatePresence ?? (({ children }) => <>{children}</>);
 
       function ImageWithFallback({ src, alt, className, ...props }) {
         const [didError, setDidError] = useState(false);
