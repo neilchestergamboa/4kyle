@@ -1,0 +1,415 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Date Proposal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body class="min-h-screen bg-gradient-to-br from-pink-100 via-purple-50 to-indigo-100">
+    <div id="root"></div>
+
+    <script type="module">
+      import React, { useState, useEffect, useRef } from 'https://esm.sh/react@18';
+      import { createRoot } from 'https://esm.sh/react-dom@18/client';
+      import { motion, AnimatePresence } from 'https://esm.sh/framer-motion@11?external=react,react-dom';
+
+      function ImageWithFallback({ src, alt, className, ...props }) {
+        const [didError, setDidError] = useState(false);
+        const ERROR_IMG_SRC = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODgiIGhlaWdodD0iODgiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgc3Ryb2tlPSIjMDAwIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBvcGFjaXR5PSIuMyIgZmlsbD0ibm9uZSIgc3Ryb2tlLXdpZHRoPSIzLjciPjxyZWN0IHg9IjE2IiB5PSIxNiIgd2lkdGg9IjU2IiBoZWlnaHQ9IjU2IiByeD0iNiIvPjxwYXRoIGQ9Im0xNiA1OCAxNi0xOCAzMiAzMiIvPjxjaXJjbGUgY3g9IjUzIiBjeT0iMzUiIHI9IjciLz48L3N2Zz4=';
+        const handleError = () => setDidError(true);
+        return didError ? (
+          <div className={`inline-block bg-gray-100 text-center align-middle ${className ?? ''}`}>
+            <div className="flex items-center justify-center w-full h-full">
+              <img src={ERROR_IMG_SRC} alt="Error loading image" {...props} />
+            </div>
+          </div>
+        ) : (
+          <img src={src} alt={alt} className={className} onError={handleError} {...props} />
+        );
+      }
+
+      function Button({ children, className = '', variant = 'default', ...props }) {
+        const baseClasses = "inline-flex items-center justify-center rounded-full px-8 py-4 text-xl font-medium transition-all duration-200";
+        const variantClasses = {
+          default: "bg-gradient-to-r from-orange-400 to-orange-600 hover:from-orange-500 hover:to-orange-700 text-white shadow-lg hover:shadow-xl",
+          destructive: "bg-red-500 hover:bg-red-600 text-white shadow-lg hover:shadow-xl"
+        };
+        return (
+          <button className={`${baseClasses} ${variantClasses[variant]} ${className}`} {...props}>
+            {children}
+          </button>
+        );
+      }
+
+      function Progress({ value, className = '' }) {
+        return (
+          <div className={`bg-gray-200 rounded-full h-2 overflow-hidden ${className}`}>
+            <motion.div
+              className="h-full bg-gradient-to-r from-pink-500 to-purple-500 rounded-full"
+              initial={{ width: 0 }}
+              animate={{ width: `${value}%` }}
+              transition={{ duration: 0.5 }}
+            />
+          </div>
+        );
+      }
+
+      function Confetti({ isActive, onComplete }) {
+        const canvasRef = useRef(null);
+        useEffect(() => {
+          if (!isActive || !canvasRef.current) return;
+          const canvas = canvasRef.current;
+          const ctx = canvas.getContext('2d');
+          canvas.width = window.innerWidth;
+          canvas.height = window.innerHeight;
+          const particles = [];
+          const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FECA57', '#FF9FF3', '#54A0FF'];
+          for (let i = 0; i < 150; i++) {
+            particles.push({
+              x: Math.random() * canvas.width,
+              y: -10,
+              vx: (Math.random() - 0.5) * 10,
+              vy: Math.random() * 5 + 2,
+              color: colors[Math.floor(Math.random() * colors.length)],
+              size: Math.random() * 8 + 3,
+              gravity: 0.3
+            });
+          }
+          let animationId;
+          const animate = () => {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            particles.forEach((particle, index) => {
+              particle.vy += particle.gravity;
+              particle.x += particle.vx;
+              particle.y += particle.vy;
+              ctx.fillStyle = particle.color;
+              ctx.beginPath();
+              ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
+              ctx.fill();
+              if (particle.y > canvas.height + 10) {
+                particles.splice(index, 1);
+              }
+            });
+            if (particles.length > 0) {
+              animationId = requestAnimationFrame(animate);
+            } else {
+              onComplete();
+            }
+          };
+          animate();
+          return () => { if (animationId) cancelAnimationFrame(animationId); };
+        }, [isActive, onComplete]);
+        if (!isActive) return null;
+        return (
+          <canvas ref={canvasRef} className="fixed inset-0 pointer-events-none z-50" style={{ background: 'transparent' }} />
+        );
+      }
+
+      function CustomCursor() {
+        const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+        const [isHovering, setIsHovering] = useState(false);
+        useEffect(() => {
+          const updateMousePosition = (e) => {
+            setMousePosition({ x: e.clientX, y: e.clientY });
+          };
+          const handleMouseOver = (e) => {
+            const target = e.target;
+            setIsHovering(
+              target.tagName === 'BUTTON' ||
+              (target.classList && target.classList.contains('cursor-pointer')) ||
+              (target.closest && target.closest('button') !== null)
+            );
+          };
+          window.addEventListener('mousemove', updateMousePosition);
+          window.addEventListener('mouseover', handleMouseOver);
+          return () => {
+            window.removeEventListener('mousemove', updateMousePosition);
+            window.removeEventListener('mouseover', handleMouseOver);
+          };
+        }, []);
+        return (
+          <>
+            <motion.div
+              className="fixed top-0 left-0 pointer-events-none z-50 mix-blend-difference"
+              animate={{ x: mousePosition.x - 10, y: mousePosition.y - 10, scale: isHovering ? 2 : 1 }}
+              transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+            >
+              <div className="w-5 h-5 bg-white rounded-full" />
+            </motion.div>
+            <motion.div
+              className="fixed top-0 left-0 pointer-events-none z-40"
+              animate={{ x: mousePosition.x - 20, y: mousePosition.y - 20 }}
+              transition={{ type: 'spring', stiffness: 150, damping: 20 }}
+            >
+              <div className="w-10 h-10 border-2 border-pink-400 rounded-full opacity-50" />
+            </motion.div>
+          </>
+        );
+      }
+
+      function TypewriterText({ text, speed = 100, onComplete, className = '' }) {
+        const [displayText, setDisplayText] = useState('');
+        const [currentIndex, setCurrentIndex] = useState(0);
+        const [showCursor, setShowCursor] = useState(true);
+        useEffect(() => {
+          const cursorInterval = setInterval(() => setShowCursor((prev) => !prev), 530);
+          return () => clearInterval(cursorInterval);
+        }, []);
+        useEffect(() => {
+          if (currentIndex < text.length) {
+            const timeout = setTimeout(() => {
+              setDisplayText((prev) => prev + text[currentIndex]);
+              setCurrentIndex((prev) => prev + 1);
+            }, speed);
+            return () => clearTimeout(timeout);
+          } else if (onComplete) {
+            const t = setTimeout(onComplete, 500);
+            return () => clearTimeout(t);
+          }
+        }, [currentIndex, text, speed, onComplete]);
+        return (
+          <div className={className}>
+            {displayText}
+            {showCursor && (
+              <motion.span animate={{ opacity: [1, 0] }} transition={{ repeat: Infinity, duration: 0.53 }} className="inline-block w-1 bg-current ml-1">|</motion.span>
+            )}
+          </div>
+        );
+      }
+
+      function ProgressTracker({ attempts, maxAttempts = 10 }) {
+        const progress = (attempts / maxAttempts) * 100;
+        const getStatusMessage = () => {
+          if (attempts === 0) return 'Ready to ask the question! 💕';
+          if (attempts < 3) return "Come on, just give it a chance! 🥺";
+          if (attempts < 6) return "You're being stubborn... 😅";
+          if (attempts < 8) return "I'm not giving up! 💪";
+          if (attempts < maxAttempts) return 'Almost there... please? 🙏';
+          return "You're really testing my patience! 😭";
+        };
+        if (attempts === 0) return null;
+        return (
+          <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="fixed top-8 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur-sm rounded-full px-6 py-3 shadow-lg z-40 min-w-80">
+            <div className="text-center">
+              <p className="text-sm mb-2 text-gray-700">{getStatusMessage()}</p>
+              <Progress value={progress} className="h-2" />
+              <p className="text-xs mt-1 text-gray-500">Escape attempts: {attempts}/{maxAttempts}</p>
+            </div>
+          </motion.div>
+        );
+      }
+
+      function LoadingScreen({ onComplete }) {
+        return (
+          <motion.div
+            className="fixed inset-0 bg-gradient-to-br from-pink-500 via-purple-500 to-indigo-500 flex items-center justify-center z-50"
+            initial={{ opacity: 1 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0, scale: 0.8 }}
+            transition={{ duration: 0.8 }}
+            onAnimationComplete={() => { setTimeout(onComplete, 3000); }}
+          >
+            <div className="text-center text-white">
+              <motion.div
+                animate={{ scale: [1, 1.2, 1], rotate: [0, 10, -10, 0] }}
+                transition={{ repeat: Infinity, duration: 2, ease: 'easeInOut' }}
+                className="mb-8 text-8xl"
+              >
+                ❤️
+              </motion.div>
+              <motion.h2 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }} className="text-2xl mb-4">
+                Preparing something special...
+              </motion.h2>
+              <motion.div initial={{ width: 0 }} animate={{ width: '100%' }} transition={{ duration: 2.5, ease: 'easeInOut' }} className="h-1 bg-white rounded-full mx-auto max-w-xs" />
+              <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.5 }} className="text-sm mt-4 opacity-80">
+                Loading your perfect moment...
+              </motion.p>
+            </div>
+          </motion.div>
+        );
+      }
+
+      function DateProposal() {
+        const [stage, setStage] = useState('loading'); // loading -> proposal
+        const [currentStage, setCurrentStage] = useState('proposal');
+        const [noButtonPosition, setNoButtonPosition] = useState({ x: 0, y: 0 });
+        const [showMeme, setShowMeme] = useState(false);
+        const [currentMeme, setCurrentMeme] = useState(0);
+        const [hoverCount, setHoverCount] = useState(0);
+        const [showConfetti, setShowConfetti] = useState(false);
+        const [questionRevealed, setQuestionRevealed] = useState(false);
+        const [showRedirectMessage, setShowRedirectMessage] = useState(false);
+
+        const memeImages = [
+          'https://images.unsplash.com/photo-1611856950533-e653f91165fc?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxjcnlpbmclMjBjYXQlMjBtZW1lJTIwc2FkfGVufDF8fHx8MTc1ODE4ODAzNHww&ixlib=rb-4.1.0&q=80&w=1080',
+          'https://images.unsplash.com/photo-1598082862966-0222c60f0383?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxzYWQlMjBjcnlpbmclMjBkb2clMjBtZW1lfGVufDF8fHx8MTc1ODE4ODAzNnww&ixlib=rb-4.1.0&q=80&w=1080',
+          'https://images.unsplash.com/photo-1562176567-e393d29c098d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHxjdXRlJTIwcHVwcHklMjBzYWQlMjBleWVzfGVufDF8fHx8MTc1ODE4ODAzOXww&ixlib=rb-4.1.0&q=80&w=1080'
+        ];
+        const encouragingMessages = [
+          'Come on, give me a chance! 🥺',
+          "Please don't say no! 😭",
+          "I promise it'll be fun! 🙏",
+          'Pretty please with a cherry on top? 🍒',
+          "You're breaking my heart! 💔"
+        ];
+
+        const handleNoHover = () => {
+          const centerX = window.innerWidth / 2;
+          const centerY = window.innerHeight / 2;
+          const avoidWidth = window.innerWidth * 0.25;
+          const avoidHeight = window.innerHeight * 0.25;
+          let newX, newY;
+          if (Math.random() > 0.5) {
+            newX = Math.random() * (centerX - avoidWidth - 150);
+          } else {
+            newX = centerX + avoidWidth + Math.random() * (centerX - avoidWidth - 150);
+          }
+          if (Math.random() > 0.5) {
+            newY = Math.random() * (centerY - avoidHeight - 50);
+          } else {
+            newY = centerY + avoidHeight + Math.random() * (centerY - avoidHeight - 50);
+          }
+          newX = Math.max(10, Math.min(newX, window.innerWidth - 160));
+          newY = Math.max(10, Math.min(newY, window.innerHeight - 60));
+          setNoButtonPosition({ x: newX, y: newY });
+          setShowMeme(true);
+          setCurrentMeme(Math.floor(Math.random() * memeImages.length));
+          setHoverCount((prev) => prev + 1);
+          setTimeout(() => setShowMeme(false), 2000);
+        };
+
+        const handleYesClick = () => {
+          setCurrentStage('accepted');
+          setShowConfetti(true);
+        };
+
+        const handleConfettiComplete = () => {
+          setShowConfetti(false);
+          setShowRedirectMessage(true);
+          setTimeout(() => {
+            window.open('https://www.instagram.com/your_username/', '_blank');
+          }, 3000);
+        };
+
+        if (stage === 'loading') {
+          return (
+            <AnimatePresence>
+              <LoadingScreen onComplete={() => setStage('proposal')} />
+            </AnimatePresence>
+          );
+        }
+
+        if (currentStage === 'accepted') {
+          return (
+            <div className="min-h-screen bg-gradient-to-br from-pink-100 via-purple-50 to-indigo-100 flex items-center justify-center p-8">
+              <Confetti isActive={showConfetti} onComplete={handleConfettiComplete} />
+              <motion.div initial={{ scale: 0, rotate: -180 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: 'spring', stiffness: 260, damping: 20 }} className="text-center">
+                <motion.div animate={{ scale: [1, 1.1, 1], rotate: [0, 5, -5, 0] }} transition={{ repeat: Infinity, duration: 2, ease: 'easeInOut' }} className="text-8xl mb-6">🎉</motion.div>
+                <h1 className="text-4xl md:text-6xl mb-4 bg-gradient-to-r from-pink-500 to-purple-600 bg-clip-text text-transparent">YES!!!</h1>
+                <p className="text-xl md:text-2xl text-gray-700 mb-6">You made me the happiest person alive! 💕</p>
+                <motion.div animate={{ y: [0, -10, 0] }} transition={{ repeat: Infinity, duration: 1.5 }} className="text-6xl">💖</motion.div>
+                <p className="text-lg text-gray-600 mt-4">I can't wait for our date! 🥰</p>
+                {showRedirectMessage && (
+                  <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mt-8 p-6 bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg">
+                    <p className="text-lg text-gray-700 mb-2">Now message me on Instagram! 💬</p>
+                    <p className="text-sm text-gray-500">Redirecting you in a moment... ✨</p>
+                  </motion.div>
+                )}
+              </motion.div>
+            </div>
+          );
+        }
+
+        return (
+          <div className="min-h-screen bg-gradient-to-br from-pink-100 via-purple-50 to-indigo-100 flex items-center justify-center p-8 relative overflow-hidden cursor-none">
+            <CustomCursor />
+            <ProgressTracker attempts={hoverCount} />
+
+            <div className="absolute inset-0 pointer-events-none">
+              {[...Array(20)].map((_, i) => (
+                <motion.div
+                  key={i}
+                  className="absolute text-2xl text-pink-300 opacity-50"
+                  initial={{ x: Math.random() * (typeof window !== 'undefined' ? window.innerWidth : 800), y: (typeof window !== 'undefined' ? window.innerHeight : 600) + 50 }}
+                  animate={{ y: -50, x: Math.random() * (typeof window !== 'undefined' ? window.innerWidth : 800) }}
+                  transition={{ duration: Math.random() * 10 + 10, repeat: Infinity, ease: 'linear' }}
+                >
+                  💕
+                </motion.div>
+              ))}
+            </div>
+
+            <div className="text-center relative z-10">
+              <motion.div initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8 }}>
+                <div className="mb-8">
+                  {!questionRevealed ? (
+                    <TypewriterText
+                      text="💕 Will you go on a date with me? 💕"
+                      speed={150}
+                      onComplete={() => setQuestionRevealed(true)}
+                      className="text-4xl md:text-6xl bg-gradient-to-r from-pink-500 to-purple-600 bg-clip-text text-transparent"
+                    />
+                  ) : (
+                    <motion.h1 initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-4xl md:text-6xl bg-gradient-to-r from-pink-500 to-purple-600 bg-clip-text text-transparent">
+                      💕 Will you go on a date with me? 💕
+                    </motion.h1>
+                  )}
+                </div>
+
+                {hoverCount > 0 && (
+                  <motion.p initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} className="text-lg text-gray-600 mb-6">
+                    {encouragingMessages[Math.min(hoverCount - 1, encouragingMessages.length - 1)]}
+                  </motion.p>
+                )}
+
+                <div className="flex gap-8 justify-center items-center relative">
+                  {questionRevealed && (
+                    <>
+                      <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }}>
+                        <Button onClick={handleYesClick}>Yes! 🧡</Button>
+                      </motion.div>
+                      <motion.div
+                        style={{ position: hoverCount > 0 ? 'fixed' : 'relative', left: hoverCount > 0 ? noButtonPosition.x : 'auto', top: hoverCount > 0 ? noButtonPosition.y : 'auto', zIndex: 20 }}
+                        animate={hoverCount > 0 ? { x: [0, -10, 10, -10, 10, 0], rotate: [0, -5, 5, -5, 5, 0] } : {}}
+                        transition={{ duration: 0.5 }}
+                        onHoverStart={handleNoHover}
+                      >
+                        <Button variant="destructive">No 😔</Button>
+                      </motion.div>
+                    </>
+                  )}
+                </div>
+              </motion.div>
+            </div>
+
+            <AnimatePresence>
+              {showMeme && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0, rotate: -45 }}
+                  animate={{ opacity: 1, scale: 1, rotate: 0 }}
+                  exit={{ opacity: 0, scale: 0, rotate: 45 }}
+                  transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                  className="fixed inset-0 flex items-center justify-center z-30 pointer-events-none"
+                >
+                  <div className="bg-white rounded-2xl p-4 shadow-2xl border-4 border-pink-200">
+                    <ImageWithFallback src={memeImages[currentMeme]} alt="Sad meme" className="w-64 h-64 object-cover rounded-xl" />
+                    <p className="text-center mt-3 text-lg">Why you do dis to me? 😭</p>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        );
+      }
+
+      const root = createRoot(document.getElementById('root'));
+      root.render(
+        <React.StrictMode>
+          <DateProposal />
+        </React.StrictMode>
+      );
+    </script>
+  </body>
+  </html>
+
